@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RAIN BOT
---------
-Stylisches CLI-Tool im Cyber-/Hacker-Look mit:
-  * Matrix-Style "Rain"-Intro
-  * Animierter Loading-Bar
-  * Roter Devil-ASCII-Art (doxbin style)
-  * 5 echte Tools (IP Lookup, Webhook, Port Scan, Hash, Password)
+RAIN BOT - hacker CLI toolkit
+-----------------------------
+* matrix rain intro
+* RAIN BOT banner with blood-red gradient
+* boot sequence with animated loading bars
+* red devil ASCII (doxbin / metal style)
+* 5 real tools
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import platform
 import random
 import secrets
 import shutil
@@ -31,17 +30,28 @@ from datetime import datetime
 from typing import List
 
 # ---------------------------------------------------------------------------
-# Optional deps
+# Enable ANSI on Windows
 # ---------------------------------------------------------------------------
 
-try:
-    from colorama import Fore, Style, init as colorama_init
-    colorama_init(autoreset=True)
-except ImportError:
-    class _Dummy:
-        def __getattr__(self, _): return ""
-    Fore = Style = _Dummy()  # type: ignore
+if os.name == "nt":
+    # turn on virtual terminal processing so 256-color codes work
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    except Exception:
+        pass
+    try:
+        from colorama import just_fix_windows_console  # type: ignore
+        just_fix_windows_console()
+    except ImportError:
+        try:
+            from colorama import init as _ci  # type: ignore
+            _ci()
+        except ImportError:
+            pass
 
+# pyfiglet is optional - we ship a builtin banner as fallback
 try:
     import pyfiglet  # type: ignore
     HAS_PYFIGLET = True
@@ -50,22 +60,40 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
+# Creepy hacker-red color palette (ANSI 256)
+# ---------------------------------------------------------------------------
+
+class C:
+    R       = "\033[0m"           # reset
+    B       = "\033[1m"           # bold
+    DIM     = "\033[2m"
+
+    # red gradient: dark blood -> bright red
+    DARK    = "\033[38;5;52m"     # very dark blood
+    BLOOD   = "\033[38;5;88m"     # blood
+    RED     = "\033[38;5;124m"    # red
+    HOT     = "\033[38;5;160m"    # hot red
+    BRIGHT  = "\033[38;5;196m"    # bright red
+
+    # accents
+    GREY    = "\033[38;5;240m"
+    WHITE   = "\033[38;5;255m"
+    BONE    = "\033[38;5;230m"
+    GREEN   = "\033[38;5;46m"
+
+
+# blood-wave gradient for banner / loading bar
+RED_GRADIENT = [C.DARK, C.BLOOD, C.RED, C.HOT, C.BRIGHT, C.HOT, C.RED, C.BLOOD]
+DEVIL_GRADIENT = [C.BRIGHT, C.HOT, C.RED, C.HOT, C.BRIGHT, C.HOT, C.RED, C.BLOOD, C.DARK]
+
+
+# ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
 AUTHOR = "proxytq"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 TOOL_NAME = "RAIN BOT"
-
-GRADIENT = [
-    Fore.CYAN, Fore.LIGHTCYAN_EX, Fore.LIGHTBLUE_EX,
-    Fore.BLUE, Fore.LIGHTMAGENTA_EX, Fore.MAGENTA,
-]
-
-RED_GRADIENT = [
-    Fore.LIGHTRED_EX, Fore.RED, Fore.RED,
-    Fore.LIGHTRED_EX, Fore.RED, Fore.LIGHTRED_EX,
-]
 
 
 # ---------------------------------------------------------------------------
@@ -86,27 +114,27 @@ def center_block(text: str) -> str:
     return "\n".join(line.center(cols) for line in text.splitlines())
 
 
-def gradient_text(text: str, colors: List[str] = GRADIENT) -> str:
+def gradient_text(text: str, palette: List[str] = RED_GRADIENT) -> str:
     out = []
     for i, line in enumerate(text.splitlines()):
-        out.append(f"{colors[i % len(colors)]}{line}{Style.RESET_ALL}")
+        out.append(f"{palette[i % len(palette)]}{line}{C.R}")
     return "\n".join(out)
 
 
-def banner_line(label: str) -> None:
+def section(label: str) -> None:
     cols = term_size()[0]
     bar = "-" * min(cols - 4, 60)
-    print(f"  {Fore.LIGHTBLACK_EX}{bar}{Style.RESET_ALL}")
-    print(f"  {Fore.LIGHTMAGENTA_EX}>> {Fore.WHITE}{label}{Style.RESET_ALL}")
-    print(f"  {Fore.LIGHTBLACK_EX}{bar}{Style.RESET_ALL}")
+    print(f"  {C.GREY}{bar}{C.R}")
+    print(f"  {C.BRIGHT}>> {C.WHITE}{label}{C.R}")
+    print(f"  {C.GREY}{bar}{C.R}")
 
 
 def pause() -> None:
-    input(f"\n  {Fore.LIGHTBLACK_EX}[ENTER] zurueck zum Menue...{Style.RESET_ALL}")
+    input(f"\n  {C.GREY}[ENTER] back to menu...{C.R}")
 
 
 # ---------------------------------------------------------------------------
-# Matrix Rain
+# Matrix Rain (red, not green - to match the theme)
 # ---------------------------------------------------------------------------
 
 def matrix_rain(duration: float = 1.5) -> None:
@@ -119,14 +147,14 @@ def matrix_rain(duration: float = 1.5) -> None:
             random.choice(charset) if random.random() > 0.25 else " "
             for _ in range(cols)
         )
-        shade = random.choice([Fore.GREEN, Fore.LIGHTGREEN_EX])
-        print(f"{shade}{line}{Style.RESET_ALL}")
+        shade = random.choice([C.DARK, C.BLOOD, C.RED, C.HOT, C.BRIGHT])
+        print(f"{shade}{line}{C.R}")
         time.sleep(0.04)
     clear()
 
 
 # ---------------------------------------------------------------------------
-# RAIN BOT Banner
+# RAIN BOT main banner
 # ---------------------------------------------------------------------------
 
 BUILTIN_BANNER = r"""
@@ -149,13 +177,19 @@ def print_main_banner() -> None:
     cols = term_size()[0]
     print()
     for line in render_main_banner().splitlines():
-        pad = max((cols - len(line)) // 2, 0)
+        # ANSI escapes don't take visual space, but when pyfiglet is off
+        # the line has no escapes; either way center on raw length.
+        plain = line
+        for code in RED_GRADIENT + [C.R]:
+            plain = plain.replace(code, "")
+        pad = max((cols - len(plain)) // 2, 0)
         print(" " * pad + line)
-    bar = f"{Fore.LIGHTBLACK_EX}{'-' * min(cols - 4, 70)}{Style.RESET_ALL}"
+
+    bar = f"{C.GREY}{'-' * min(cols - 4, 70)}{C.R}"
     info = (
-        f"{Fore.LIGHTCYAN_EX}>> {Fore.WHITE}Author : {Fore.LIGHTMAGENTA_EX}{AUTHOR}"
-        f"   {Fore.WHITE}Version: {Fore.LIGHTMAGENTA_EX}v{VERSION}"
-        f"   {Fore.WHITE}Build  : {Fore.LIGHTMAGENTA_EX}{datetime.now():%Y-%m-%d}"
+        f"{C.BRIGHT}>> {C.WHITE}author : {C.HOT}{AUTHOR}"
+        f"   {C.WHITE}version: {C.HOT}v{VERSION}"
+        f"   {C.WHITE}build  : {C.HOT}{datetime.now():%Y-%m-%d}"
     )
     print()
     print(center_block(bar))
@@ -165,61 +199,71 @@ def print_main_banner() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Devil Banner (doxbin style)
+# Devil ASCII (red, doxbin / hardcore style)
 # ---------------------------------------------------------------------------
 
 DEVIL_ART = r'''
-                       _,...,_
-                    .-'       `-.
-                  ,'    _   _    `.
-                 /    /(o) (o)\    \
-                ;    /   ^^^   \    ;
-                |   |  (  Y  )  |   |
-                ;    \   \_/   /    ;
-                 \    `.,___,.'    /
-                  `.   _____    ,'
-                    `-'     `--'
-              \\\\\           /////
-              \\\\\\         //////
-              =\\\\\\       //////=
-                \V/  \\___//  \V/
-                 ||   |||||   ||
-                 ||   |||||   ||
-                 W    \|||/    W
-                       VVV
-                      _|_|_
-                     /__|__\
-                    /_/   \_\
-
-         .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.
-        ( 6 ) ( 6 ) ( 6 ) ( 6 ) ( 6 ) ( 6 ) ( 6 ) ( 6 )
-         `-'   `-'   `-'   `-'   `-'   `-'   `-'   `-'
-
-              [   W E L C O M E   T O   H E L L   ]
-                       proxytq // rain bot
+        \\.                                                  .//
+         \\\\.                                             ./////
+          \\\\\\.                                       .///////
+           \\\\\\\\.                                  .////////
+            \\\\\\\\\\.                            ./////////
+             \\\\\\\\\\\\.                       ./////////
+              \\\\\\\\\\\\\\.                  ./////////
+               \\\\\\\\\\\\\\\\.            .///////////
+                \\\\\\\\\\\\\\\\\\\.    .//////////////
+                 \\\\\\\\\\\\\\\\\\\\\\////////////////
+                  \\\\\\__________________________////
+                   \\__/                          \__/
+                  /  __                            __  \
+                 /  /  \                          /  \  \
+                | |    |    >>>>      <<<<       |    | |
+                 \  \__/                          \__/  /
+                  \                                    /
+                   |       \\                //       |
+                    \       \\\\\\\\\\\\\\\\//       /
+                     \       \\\\\\\\\\\\\\//       /
+                      \       \\__________//       /
+                       \       \  V V V  /        /
+                        \       \  ^^^  /        /
+                         \       \_____/        /
+                          \                    /
+                           \__________________/
+                              \\\\\\______/////
+                               \\\\\\\__////
+                                 \\\V////
+                                  \\V//
+                                   \V/
+                                    V
 '''
 
 
 def print_devil() -> None:
-    """Druckt das Devil-Bild in rot mit kleinem Fade-In."""
+    """Render the devil banner with a row-by-row red fade-in."""
     clear()
     cols = term_size()[0]
+    print()
     lines = DEVIL_ART.splitlines()
     for i, line in enumerate(lines):
-        color = RED_GRADIENT[i % len(RED_GRADIENT)]
+        color = DEVIL_GRADIENT[i % len(DEVIL_GRADIENT)]
         pad = max((cols - len(line)) // 2, 0)
-        sys.stdout.write(" " * pad + f"{Style.BRIGHT}{color}{line}{Style.RESET_ALL}\n")
+        sys.stdout.write(" " * pad + f"{C.B}{color}{line}{C.R}\n")
         sys.stdout.flush()
-        time.sleep(0.03)
+        time.sleep(0.04)
     print()
-    sub = f"{Fore.RED}>> {Fore.LIGHTRED_EX}{AUTHOR}{Fore.RED} :: {Fore.WHITE}all systems compromised{Style.RESET_ALL}"
+    sub = (
+        f"{C.HOT}>> {C.BRIGHT}{AUTHOR}{C.HOT} :: "
+        f"{C.WHITE}all systems compromised{C.R}"
+    )
     print(center_block(sub))
+    tag = f"{C.DARK}-- welcome to hell --{C.R}"
+    print(center_block(tag))
     print()
     time.sleep(1.2)
 
 
 # ---------------------------------------------------------------------------
-# Loading Bar
+# Loading bar (red gradient, no more pride colors)
 # ---------------------------------------------------------------------------
 
 SPINNER = ["|", "/", "-", "\\"]
@@ -232,21 +276,23 @@ def loading_bar(label: str, duration: float = 1.0, width: int = 38) -> None:
     for i in range(steps + 1):
         filled = int(width * i / steps)
         empty = width - filled
+
         bar_filled = ""
         for j in range(filled):
-            color = GRADIENT[(j * len(GRADIENT) // max(width, 1)) % len(GRADIENT)]
-            bar_filled += f"{color}#{Style.RESET_ALL}"
-        bar_empty = f"{Fore.LIGHTBLACK_EX}{'-' * empty}{Style.RESET_ALL}"
+            color = RED_GRADIENT[(j * len(RED_GRADIENT) // max(width, 1)) % len(RED_GRADIENT)]
+            bar_filled += f"{color}#{C.R}"
+        bar_empty = f"{C.GREY}{'-' * empty}{C.R}"
+
         spin = SPINNER[i % len(SPINNER)]
         elapsed = time.time() - start
         line = (
-            f"  {Fore.LIGHTMAGENTA_EX}[{spin}]{Style.RESET_ALL} "
-            f"{Fore.WHITE}{label:<22}{Style.RESET_ALL} "
-            f"{Fore.LIGHTBLACK_EX}[{Style.RESET_ALL}"
+            f"  {C.BRIGHT}[{spin}]{C.R} "
+            f"{C.WHITE}{label:<22}{C.R} "
+            f"{C.GREY}[{C.R}"
             f"{bar_filled}{bar_empty}"
-            f"{Fore.LIGHTBLACK_EX}]{Style.RESET_ALL} "
-            f"{Fore.LIGHTCYAN_EX}{i:3d}%{Style.RESET_ALL} "
-            f"{Fore.LIGHTBLACK_EX}({elapsed:4.1f}s){Style.RESET_ALL}"
+            f"{C.GREY}]{C.R} "
+            f"{C.HOT}{i:3d}%{C.R} "
+            f"{C.GREY}({elapsed:4.1f}s){C.R}"
         )
         sys.stdout.write("\r" + line)
         sys.stdout.flush()
@@ -256,39 +302,40 @@ def loading_bar(label: str, duration: float = 1.0, width: int = 38) -> None:
 
 def boot_sequence() -> None:
     tasks = [
-        ("Loading core ........", 1.0),
-        ("Connecting sockets ..", 0.9),
-        ("Decrypting modules ..", 1.2),
-        ("Spawning workers ....", 0.8),
-        ("Summoning daemons ...", 1.0),
-        ("Finalizing ..........", 0.6),
+        ("loading core .......", 1.0),
+        ("opening sockets ....", 0.9),
+        ("decrypting modules .", 1.2),
+        ("spawning workers ...", 0.8),
+        ("summoning daemons ..", 1.0),
+        ("finalizing .........", 0.6),
     ]
     print()
     for label, dur in tasks:
         loading_bar(label, dur)
-    print(f"\n  {Fore.LIGHTGREEN_EX}[OK]{Style.RESET_ALL} "
-          f"{Fore.WHITE}All systems online.{Style.RESET_ALL}\n")
+    print(f"\n  {C.GREEN}[OK]{C.R} {C.WHITE}all systems online.{C.R}\n")
     time.sleep(0.5)
 
 
 # ---------------------------------------------------------------------------
-# Tool 1: IP Lookup (ip-api.com - kein API key noetig)
+# Tool 1: IP Lookup
 # ---------------------------------------------------------------------------
 
 def tool_ip_lookup() -> None:
-    banner_line("IP LOOKUP")
-    target = input(f"  {Fore.LIGHTCYAN_EX}IP / Domain "
-                   f"{Fore.LIGHTBLACK_EX}(leer = eigene IP){Fore.WHITE}: {Style.RESET_ALL}").strip()
+    section("IP LOOKUP")
+    target = input(
+        f"  {C.HOT}IP / domain "
+        f"{C.GREY}(empty = your own IP){C.WHITE}: {C.R}"
+    ).strip()
     url = f"http://ip-api.com/json/{urllib.parse.quote(target)}" if target else "http://ip-api.com/json/"
     try:
         with urllib.request.urlopen(url, timeout=8) as r:
             data = json.loads(r.read().decode())
     except (urllib.error.URLError, socket.timeout) as e:
-        print(f"  {Fore.LIGHTRED_EX}[!] Fehler: {e}{Style.RESET_ALL}")
+        print(f"  {C.BRIGHT}[!] error: {e}{C.R}")
         return pause()
 
     if data.get("status") != "success":
-        print(f"  {Fore.LIGHTRED_EX}[!] {data.get('message', 'unknown error')}{Style.RESET_ALL}")
+        print(f"  {C.BRIGHT}[!] {data.get('message', 'unknown error')}{C.R}")
         return pause()
 
     fields = [
@@ -309,9 +356,9 @@ def tool_ip_lookup() -> None:
             val = f"{data.get('lat')}, {data.get('lon')}"
         else:
             val = data.get(key, "-")
-        print(f"  {Fore.LIGHTCYAN_EX}{label:<9}{Style.RESET_ALL} "
-              f"{Fore.LIGHTBLACK_EX}:{Style.RESET_ALL} "
-              f"{Fore.WHITE}{val}{Style.RESET_ALL}")
+        print(f"  {C.HOT}{label:<9}{C.R} "
+              f"{C.GREY}:{C.R} "
+              f"{C.WHITE}{val}{C.R}")
     pause()
 
 
@@ -320,23 +367,24 @@ def tool_ip_lookup() -> None:
 # ---------------------------------------------------------------------------
 
 def tool_webhook() -> None:
-    banner_line("WEBHOOK SENDER")
-    print(f"  {Fore.LIGHTBLACK_EX}Sendet eine Nachricht an einen Discord-Webhook.{Style.RESET_ALL}\n")
-    url = input(f"  {Fore.LIGHTCYAN_EX}Webhook URL{Fore.WHITE}: {Style.RESET_ALL}").strip()
-    if not url.startswith(("https://discord.com/api/webhooks/", "https://discordapp.com/api/webhooks/")):
-        print(f"  {Fore.LIGHTRED_EX}[!] Ungueltige Discord-Webhook-URL.{Style.RESET_ALL}")
+    section("WEBHOOK SENDER")
+    print(f"  {C.GREY}send a message to a Discord webhook.{C.R}\n")
+    url = input(f"  {C.HOT}webhook URL{C.WHITE}: {C.R}").strip()
+    if not url.startswith(("https://discord.com/api/webhooks/",
+                           "https://discordapp.com/api/webhooks/")):
+        print(f"  {C.BRIGHT}[!] invalid Discord webhook URL.{C.R}")
         return pause()
 
-    username = input(f"  {Fore.LIGHTCYAN_EX}Username     {Fore.LIGHTBLACK_EX}(optional){Fore.WHITE}: {Style.RESET_ALL}").strip()
-    content  = input(f"  {Fore.LIGHTCYAN_EX}Message      {Fore.WHITE}: {Style.RESET_ALL}").strip()
+    username = input(f"  {C.HOT}username   {C.GREY}(optional){C.WHITE}: {C.R}").strip()
+    content  = input(f"  {C.HOT}message    {C.WHITE}: {C.R}").strip()
     try:
-        count = int(input(f"  {Fore.LIGHTCYAN_EX}Wie oft senden {Fore.LIGHTBLACK_EX}(default 1){Fore.WHITE}: {Style.RESET_ALL}") or "1")
+        count = int(input(f"  {C.HOT}send count {C.GREY}(default 1){C.WHITE}: {C.R}") or "1")
     except ValueError:
         count = 1
     count = max(1, min(count, 50))  # safety cap
 
     if not content:
-        print(f"  {Fore.LIGHTRED_EX}[!] Leere Nachricht abgebrochen.{Style.RESET_ALL}")
+        print(f"  {C.BRIGHT}[!] empty message - aborted.{C.R}")
         return pause()
 
     payload = {"content": content}
@@ -349,30 +397,28 @@ def tool_webhook() -> None:
     for i in range(1, count + 1):
         req = urllib.request.Request(
             url, data=body,
-            headers={"Content-Type": "application/json", "User-Agent": "RainBot/1.1"},
+            headers={"Content-Type": "application/json", "User-Agent": "RainBot/1.2"},
             method="POST",
         )
         try:
             with urllib.request.urlopen(req, timeout=8) as r:
                 if 200 <= r.status < 300:
-                    print(f"  {Fore.LIGHTGREEN_EX}[OK]{Style.RESET_ALL} "
-                          f"#{i} sent ({r.status})")
+                    print(f"  {C.GREEN}[OK]{C.R} #{i} sent ({r.status})")
                     ok += 1
                 else:
-                    print(f"  {Fore.LIGHTRED_EX}[!]{Style.RESET_ALL} "
-                          f"#{i} status {r.status}")
+                    print(f"  {C.BRIGHT}[!]{C.R} #{i} status {r.status}")
                     fail += 1
         except urllib.error.HTTPError as e:
-            print(f"  {Fore.LIGHTRED_EX}[!]{Style.RESET_ALL} #{i} HTTP {e.code}: {e.reason}")
+            print(f"  {C.BRIGHT}[!]{C.R} #{i} HTTP {e.code}: {e.reason}")
             fail += 1
         except Exception as e:
-            print(f"  {Fore.LIGHTRED_EX}[!]{Style.RESET_ALL} #{i} {e}")
+            print(f"  {C.BRIGHT}[!]{C.R} #{i} {e}")
             fail += 1
         time.sleep(0.6)  # rate-limit friendly
 
-    print(f"\n  {Fore.LIGHTMAGENTA_EX}>> {Fore.WHITE}Done. "
-          f"{Fore.LIGHTGREEN_EX}{ok} ok{Fore.WHITE} / "
-          f"{Fore.LIGHTRED_EX}{fail} fail{Style.RESET_ALL}")
+    print(f"\n  {C.HOT}>> {C.WHITE}done. "
+          f"{C.GREEN}{ok} ok{C.WHITE} / "
+          f"{C.BRIGHT}{fail} fail{C.R}")
     pause()
 
 
@@ -398,27 +444,27 @@ def _scan_port(host: str, port: int, timeout: float) -> int | None:
 
 
 def tool_port_scan() -> None:
-    banner_line("PORT SCANNER")
-    host = input(f"  {Fore.LIGHTCYAN_EX}Target host/IP{Fore.WHITE}: {Style.RESET_ALL}").strip()
+    section("PORT SCANNER")
+    host = input(f"  {C.HOT}target host/IP{C.WHITE}: {C.R}").strip()
     if not host:
         return
-    mode = input(f"  {Fore.LIGHTCYAN_EX}Mode {Fore.LIGHTBLACK_EX}"
-                 f"[1] common  [2] range  [3] custom{Fore.WHITE}: {Style.RESET_ALL}").strip()
+    mode = input(f"  {C.HOT}mode {C.GREY}"
+                 f"[1] common  [2] range  [3] custom{C.WHITE}: {C.R}").strip()
 
     if mode == "2":
         try:
-            lo = int(input(f"  {Fore.LIGHTCYAN_EX}From{Fore.WHITE}: {Style.RESET_ALL}"))
-            hi = int(input(f"  {Fore.LIGHTCYAN_EX}To  {Fore.WHITE}: {Style.RESET_ALL}"))
+            lo = int(input(f"  {C.HOT}from{C.WHITE}: {C.R}"))
+            hi = int(input(f"  {C.HOT}to  {C.WHITE}: {C.R}"))
         except ValueError:
-            print(f"  {Fore.LIGHTRED_EX}[!] ungueltige Eingabe{Style.RESET_ALL}")
+            print(f"  {C.BRIGHT}[!] invalid input{C.R}")
             return pause()
         ports = list(range(max(1, lo), min(65535, hi) + 1))
     elif mode == "3":
-        raw = input(f"  {Fore.LIGHTCYAN_EX}Ports (kommasepariert){Fore.WHITE}: {Style.RESET_ALL}")
+        raw = input(f"  {C.HOT}ports (comma separated){C.WHITE}: {C.R}")
         try:
             ports = [int(p) for p in raw.replace(" ", "").split(",") if p]
         except ValueError:
-            print(f"  {Fore.LIGHTRED_EX}[!] ungueltige Ports{Style.RESET_ALL}")
+            print(f"  {C.BRIGHT}[!] invalid ports{C.R}")
             return pause()
     else:
         ports = COMMON_PORTS
@@ -426,12 +472,12 @@ def tool_port_scan() -> None:
     try:
         ip = socket.gethostbyname(host)
     except socket.gaierror:
-        print(f"  {Fore.LIGHTRED_EX}[!] Host nicht aufloesbar.{Style.RESET_ALL}")
+        print(f"  {C.BRIGHT}[!] could not resolve host.{C.R}")
         return pause()
 
-    print(f"\n  {Fore.LIGHTMAGENTA_EX}>> {Fore.WHITE}Scanning "
-          f"{Fore.LIGHTCYAN_EX}{host} ({ip}){Fore.WHITE} - "
-          f"{Fore.LIGHTCYAN_EX}{len(ports)} ports{Style.RESET_ALL}\n")
+    print(f"\n  {C.HOT}>> {C.WHITE}scanning "
+          f"{C.HOT}{host} ({ip}){C.WHITE} - "
+          f"{C.HOT}{len(ports)} ports{C.R}\n")
 
     open_ports = []
     start = time.time()
@@ -445,15 +491,15 @@ def tool_port_scan() -> None:
                 except OSError:
                     svc = "?"
                 open_ports.append((port, svc))
-                print(f"  {Fore.LIGHTGREEN_EX}[+]{Style.RESET_ALL} "
-                      f"{Fore.WHITE}{port:>5}/tcp{Style.RESET_ALL}  "
-                      f"{Fore.LIGHTBLACK_EX}{svc}{Style.RESET_ALL}")
+                print(f"  {C.GREEN}[+]{C.R} "
+                      f"{C.WHITE}{port:>5}/tcp{C.R}  "
+                      f"{C.GREY}{svc}{C.R}")
 
     dur = time.time() - start
-    print(f"\n  {Fore.LIGHTMAGENTA_EX}>> {Fore.WHITE}Done. "
-          f"{Fore.LIGHTGREEN_EX}{len(open_ports)} open{Fore.WHITE} / "
+    print(f"\n  {C.HOT}>> {C.WHITE}done. "
+          f"{C.GREEN}{len(open_ports)} open{C.WHITE} / "
           f"{len(ports)} scanned in "
-          f"{Fore.LIGHTCYAN_EX}{dur:.2f}s{Style.RESET_ALL}")
+          f"{C.HOT}{dur:.2f}s{C.R}")
     pause()
 
 
@@ -462,12 +508,12 @@ def tool_port_scan() -> None:
 # ---------------------------------------------------------------------------
 
 def tool_hash() -> None:
-    banner_line("HASH GENERATOR")
-    src = input(f"  {Fore.LIGHTCYAN_EX}Source {Fore.LIGHTBLACK_EX}[1] string  [2] file{Fore.WHITE}: {Style.RESET_ALL}").strip()
+    section("HASH GENERATOR")
+    src = input(f"  {C.HOT}source {C.GREY}[1] string  [2] file{C.WHITE}: {C.R}").strip()
     if src == "2":
-        path = input(f"  {Fore.LIGHTCYAN_EX}File path{Fore.WHITE}: {Style.RESET_ALL}").strip()
+        path = input(f"  {C.HOT}file path{C.WHITE}: {C.R}").strip()
         if not os.path.isfile(path):
-            print(f"  {Fore.LIGHTRED_EX}[!] Datei nicht gefunden.{Style.RESET_ALL}")
+            print(f"  {C.BRIGHT}[!] file not found.{C.R}")
             return pause()
         hashes = {a: hashlib.new(a) for a in ("md5", "sha1", "sha256", "sha512")}
         with open(path, "rb") as f:
@@ -477,7 +523,7 @@ def tool_hash() -> None:
         results = {a: h.hexdigest() for a, h in hashes.items()}
         label = path
     else:
-        text = input(f"  {Fore.LIGHTCYAN_EX}Text{Fore.WHITE}: {Style.RESET_ALL}")
+        text = input(f"  {C.HOT}text{C.WHITE}: {C.R}")
         data = text.encode()
         results = {
             "md5":    hashlib.md5(data).hexdigest(),
@@ -487,11 +533,11 @@ def tool_hash() -> None:
         }
         label = f'"{text}"' if len(text) <= 40 else f'"{text[:37]}..."'
 
-    print(f"\n  {Fore.LIGHTBLACK_EX}Source: {Fore.WHITE}{label}{Style.RESET_ALL}\n")
+    print(f"\n  {C.GREY}source: {C.WHITE}{label}{C.R}\n")
     for algo, digest in results.items():
-        print(f"  {Fore.LIGHTCYAN_EX}{algo.upper():<7}{Style.RESET_ALL} "
-              f"{Fore.LIGHTBLACK_EX}:{Style.RESET_ALL} "
-              f"{Fore.WHITE}{digest}{Style.RESET_ALL}")
+        print(f"  {C.HOT}{algo.upper():<7}{C.R} "
+              f"{C.GREY}:{C.R} "
+              f"{C.WHITE}{digest}{C.R}")
     pause()
 
 
@@ -500,33 +546,33 @@ def tool_hash() -> None:
 # ---------------------------------------------------------------------------
 
 def tool_password() -> None:
-    banner_line("PASSWORD GENERATOR")
+    section("PASSWORD GENERATOR")
     try:
-        length = int(input(f"  {Fore.LIGHTCYAN_EX}Length {Fore.LIGHTBLACK_EX}(default 20){Fore.WHITE}: {Style.RESET_ALL}") or "20")
-        count  = int(input(f"  {Fore.LIGHTCYAN_EX}How many {Fore.LIGHTBLACK_EX}(default 5){Fore.WHITE}: {Style.RESET_ALL}") or "5")
+        length = int(input(f"  {C.HOT}length   {C.GREY}(default 20){C.WHITE}: {C.R}") or "20")
+        count  = int(input(f"  {C.HOT}how many {C.GREY}(default 5){C.WHITE}: {C.R}") or "5")
     except ValueError:
-        print(f"  {Fore.LIGHTRED_EX}[!] ungueltige Zahl{Style.RESET_ALL}")
+        print(f"  {C.BRIGHT}[!] invalid number{C.R}")
         return pause()
 
     length = max(4, min(length, 128))
     count  = max(1, min(count, 50))
 
-    use_sym = input(f"  {Fore.LIGHTCYAN_EX}Symbols? {Fore.LIGHTBLACK_EX}[Y/n]{Fore.WHITE}: {Style.RESET_ALL}").strip().lower() != "n"
+    use_sym = input(f"  {C.HOT}symbols? {C.GREY}[Y/n]{C.WHITE}: {C.R}").strip().lower() != "n"
     alphabet = string.ascii_letters + string.digits + (string.punctuation if use_sym else "")
 
     print()
     for i in range(1, count + 1):
         pw = "".join(secrets.choice(alphabet) for _ in range(length))
-        # Faerbung pro Zeichen-Klasse
+        # color characters by class
         colored = ""
         for ch in pw:
             if ch.isdigit():
-                colored += f"{Fore.LIGHTCYAN_EX}{ch}"
+                colored += f"{C.HOT}{ch}"
             elif ch.isalpha():
-                colored += f"{Fore.WHITE}{ch}"
+                colored += f"{C.WHITE}{ch}"
             else:
-                colored += f"{Fore.LIGHTMAGENTA_EX}{ch}"
-        print(f"  {Fore.LIGHTBLACK_EX}{i:>2}.{Style.RESET_ALL} {colored}{Style.RESET_ALL}")
+                colored += f"{C.BRIGHT}{ch}"
+        print(f"  {C.GREY}{i:>2}.{C.R} {colored}{C.R}")
     pause()
 
 
@@ -535,32 +581,32 @@ def tool_password() -> None:
 # ---------------------------------------------------------------------------
 
 MENU_ITEMS = [
-    ("1", "IP Lookup",          "Geo / ISP / ASN via ip-api"),
-    ("2", "Webhook Sender",     "Sende Nachrichten an Discord-Webhooks"),
-    ("3", "Port Scanner",       "Multi-threaded TCP Port Scan"),
+    ("1", "IP Lookup",          "geo / ISP / ASN via ip-api"),
+    ("2", "Webhook Sender",     "send messages to Discord webhooks"),
+    ("3", "Port Scanner",       "multi-threaded TCP port scan"),
     ("4", "Hash Generator",     "MD5 / SHA1 / SHA256 / SHA512"),
-    ("5", "Password Generator", "Sichere Zufallspasswoerter"),
-    ("9", "Show Devil",         "Devil-Bild nochmal anzeigen"),
-    ("0", "Exit",               "Tool beenden"),
+    ("5", "Password Generator", "secure random passwords"),
+    ("9", "Show Devil",         "render the devil again"),
+    ("0", "Exit",               "leave the bot"),
 ]
 
 
 def print_menu() -> None:
-    print(f"  {Fore.LIGHTMAGENTA_EX}>> {Fore.WHITE}TOOLS{Style.RESET_ALL}")
-    print(f"  {Fore.LIGHTBLACK_EX}{'-' * 60}{Style.RESET_ALL}")
+    print(f"  {C.BRIGHT}>> {C.WHITE}TOOLS{C.R}")
+    print(f"  {C.GREY}{'-' * 60}{C.R}")
     for key, name, desc in MENU_ITEMS:
         print(
-            f"  {Fore.LIGHTCYAN_EX}[{key}]{Style.RESET_ALL} "
-            f"{Fore.WHITE}{name:<20}{Style.RESET_ALL}"
-            f"{Fore.LIGHTBLACK_EX}{desc}{Style.RESET_ALL}"
+            f"  {C.HOT}[{key}]{C.R} "
+            f"{C.WHITE}{name:<20}{C.R}"
+            f"{C.GREY}{desc}{C.R}"
         )
     print()
 
 
 def prompt() -> str:
     return input(
-        f"  {Fore.LIGHTRED_EX}root@rainbot{Fore.WHITE}:"
-        f"{Fore.LIGHTCYAN_EX}~{Fore.WHITE}$ {Style.RESET_ALL}"
+        f"  {C.BRIGHT}root{C.GREY}@{C.HOT}rainbot"
+        f"{C.GREY}:{C.RED}~{C.WHITE}# {C.R}"
     ).strip()
 
 
@@ -584,18 +630,16 @@ def main_loop() -> None:
             try:
                 HANDLERS[choice]()
             except KeyboardInterrupt:
-                print(f"\n  {Fore.LIGHTRED_EX}[!] Abgebrochen.{Style.RESET_ALL}")
+                print(f"\n  {C.BRIGHT}[!] aborted.{C.R}")
                 time.sleep(0.6)
         elif choice == "9":
             print_devil()
             pause()
         elif choice in {"0", "exit", "quit", "q"}:
-            print(f"  {Fore.LIGHTRED_EX}>> {Fore.WHITE}"
-                  f"Bye. Stay in the shadows.{Style.RESET_ALL}\n")
+            print(f"  {C.BRIGHT}>> {C.WHITE}bye. stay in the shadows.{C.R}\n")
             break
         else:
-            print(f"  {Fore.LIGHTRED_EX}[!] Unbekannte Option:"
-                  f" {choice}{Style.RESET_ALL}")
+            print(f"  {C.BRIGHT}[!] unknown option: {choice}{C.R}")
             time.sleep(0.8)
 
 
@@ -611,7 +655,7 @@ def main() -> None:
         print_devil()
         main_loop()
     except KeyboardInterrupt:
-        print(f"\n  {Fore.LIGHTRED_EX}[!] Abgebrochen vom User.{Style.RESET_ALL}")
+        print(f"\n  {C.BRIGHT}[!] aborted by user.{C.R}")
         sys.exit(0)
 
 
