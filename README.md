@@ -1,45 +1,63 @@
 # RAIN BOT
 
-Stylisches Python-CLI-Tool im Cyber-/Hacker-Look mit echten Tools.
+Stylish Python CLI toolkit with a creepy hacker-red theme.
 
-## Intro
-1. Matrix-Rain Animation
-2. ASCII-Banner "RAIN BOT" mit Cyan->Magenta Gradient
-3. Animierte Loading-Bars (Boot-Sequenz)
-4. Roter Devil-ASCII-Art (doxbin style)
-5. Tools-Menue
+## Intro flow
+1. Matrix rain (red)
+2. `RAIN BOT` ASCII banner with blood-red gradient
+3. Animated boot loading bars
+4. **Devil reveal** - top-to-bottom red fade-in:
+   - if `logo.png` is present next to `rainbot.py` and Pillow is installed,
+     it will be converted to ASCII (brightness 0-9, dark pixels stripped).
+   - otherwise: built-in ASCII devil
+5. Tools menu
 
 ## Tools
 
-| # | Tool | Beschreibung |
-|---|------|--------------|
-| 1 | IP Lookup          | Geo / ISP / ASN via ip-api.com (kein API-Key) |
-| 2 | Webhook Sender     | Sendet Nachrichten an Discord-Webhooks |
-| 3 | Port Scanner       | Multi-threaded TCP Port-Scan (common / range / custom) |
-| 4 | Hash Generator     | MD5 / SHA1 / SHA256 / SHA512 fuer Strings oder Dateien |
-| 5 | Password Generator | Sichere Zufallspasswoerter (`secrets`-Modul) |
-| 9 | Show Devil         | Devil-Bild nochmal anzeigen |
-| 0 | Exit               | Beenden |
+| # | Tool | Description |
+|---|------|-------------|
+| 1 | IP Lookup          | Geo / ISP / ASN via ip-api.com (no API key) |
+| 2 | Webhook Sender     | Send messages to Discord webhooks |
+| 3 | Port Scanner       | Multi-threaded TCP port scan (common / range / custom) |
+| 4 | Hash Generator     | MD5 / SHA1 / SHA256 / SHA512 for strings or files |
+| 5 | Password Generator | Cryptographically secure random passwords |
+| 9 | Show Devil         | Re-render the devil reveal |
+| 0 | Exit               | Leave the bot |
 
-## Installation
+## Install
 
 ```bash
 pip install -r requirements.txt
 ```
 
-`colorama` und `pyfiglet` sind **optional** - ohne sie laeuft das Tool auch (mit Fallback-Banner und ohne Farben).
+`colorama`, `pyfiglet`, and `Pillow` are all **optional** - the tool still runs
+without them (no PNG -> ASCII devil, no figlet -> built-in banner).
 
-## Start
+## Logo image
+
+Drop your devil image as `logo.png` next to `rainbot.py`:
+
+```
+Rain-Bot/
+├── rainbot.py
+├── logo.png        <-- your image (PNG / JPG)
+└── requirements.txt
+```
+
+The image is converted using:
+
+```python
+brightness = pixels[x, y]
+value = brightness // 26
+" " if value < 2 else str(value)
+```
+
+## Run
 
 ```bash
 python rainbot.py
 ```
 
-## Voraussetzungen
-
-- Python 3.9+
-- Terminal mit ANSI-Farb-Support (Windows Terminal, iTerm2, etc.)
-
 ## Disclaimer
 
-Dieses Tool ist fuer **Bildungszwecke** und legitimes Testing **eigener** Systeme. Port-Scans und aehnliches nur auf Systemen anwenden, fuer die eine Berechtigung besteht.
+For educational use and authorized testing of your own systems only.

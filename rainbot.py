@@ -58,6 +58,13 @@ try:
 except ImportError:
     HAS_PYFIGLET = False
 
+# Pillow is optional - if available we render logo.png as ASCII
+try:
+    from PIL import Image  # type: ignore
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 
 # ---------------------------------------------------------------------------
 # Creepy hacker-red color palette (ANSI 256)
@@ -238,18 +245,88 @@ DEVIL_ART = r'''
 '''
 
 
+def render_logo_ascii(path: str, width: int = 120, height: int = 60) -> List[str] | None:
+    """
+    Convert an image (PNG/JPG) to ASCII lines using brightness 0-9.
+    Mirrors the snippet:
+        value = brightness // 26
+        if value < 2: space else: str(value)
+    Returns the list of ASCII lines, or None if Pillow / file is missing.
+    """
+    if not HAS_PIL:
+        return None
+    try:
+        img = Image.open(path).convert("L")
+    except (FileNotFoundError, OSError):
+        return None
+
+    img = img.resize((width, height))
+    pixels = img.load()
+
+    lines: List[str] = []
+    for y in range(img.height):
+        line_chars = []
+        for x in range(img.width):
+            brightness = pixels[x, y]
+            value = brightness // 26     # 0-9 (255//26 = 9)
+            if value < 2:
+                line_chars.append(" ")
+            else:
+                line_chars.append(str(value))
+        lines.append("".join(line_chars))
+    return lines
+
+
+def _logo_path() -> str:
+    """Look for logo.png next to this script."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(here, "logo.png")
+
+
 def print_devil() -> None:
-    """Render the devil banner with a row-by-row red fade-in."""
+    """
+    Render the devil banner with a row-by-row red top-to-bottom reveal.
+    Tries logo.png first (via Pillow), falls back to the ASCII devil art.
+    """
     clear()
     cols = term_size()[0]
+
+    # Try the image first
+    lines: List[str] | None = None
+    if HAS_PIL:
+        # Scale ASCII width to terminal but cap at 120
+        target_w = min(cols - 4, 120)
+        # rough 2:1 char aspect ratio -> halve height
+        target_h = max(20, int(target_w * 0.5))
+        lines = render_logo_ascii(_logo_path(), width=target_w, height=target_h)
+
+    if lines is None:
+        # Fallback: ASCII devil art
+        lines = DEVIL_ART.splitlines()
+
     print()
-    lines = DEVIL_ART.splitlines()
+    n = len(lines)
     for i, line in enumerate(lines):
-        color = DEVIL_GRADIENT[i % len(DEVIL_GRADIENT)]
+        # gradient mapped to vertical position so the reveal goes
+        # dark (top) -> bright (middle) -> dark (bottom)
+        rel = i / max(n - 1, 1)
+        if rel < 0.20:
+            color = C.DARK
+        elif rel < 0.40:
+            color = C.BLOOD
+        elif rel < 0.60:
+            color = C.RED
+        elif rel < 0.80:
+            color = C.HOT
+        else:
+            color = C.BRIGHT
+
         pad = max((cols - len(line)) // 2, 0)
         sys.stdout.write(" " * pad + f"{C.B}{color}{line}{C.R}\n")
         sys.stdout.flush()
-        time.sleep(0.04)
+        # speed up for tall images so the reveal stays snappy
+        time.sleep(0.025 if n > 30 else 0.04)
+
     print()
     sub = (
         f"{C.HOT}>> {C.BRIGHT}{AUTHOR}{C.HOT} :: "
@@ -259,7 +336,7 @@ def print_devil() -> None:
     tag = f"{C.DARK}-- welcome to hell --{C.R}"
     print(center_block(tag))
     print()
-    time.sleep(1.2)
+    time.sleep(1.0)
 
 
 # ---------------------------------------------------------------------------
