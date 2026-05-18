@@ -12,14 +12,11 @@ RAIN BOT - hacker CLI toolkit
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import random
-import secrets
 import shutil
 import socket
-import string
 import sys
 import time
 import urllib.error
@@ -100,7 +97,7 @@ DEVIL_GRADIENT = [C.BRIGHT, C.HOT, C.RED, C.HOT, C.BRIGHT, C.HOT, C.RED, C.BLOOD
 
 AUTHOR = "proxytq"
 VERSION = "1.2.0"
-TOOL_NAME = "RAIN BOT"
+TOOL_NAME = "0day"
 
 
 # ---------------------------------------------------------------------------
@@ -581,79 +578,6 @@ def tool_port_scan() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Tool 4: Hash Generator
-# ---------------------------------------------------------------------------
-
-def tool_hash() -> None:
-    section("HASH GENERATOR")
-    src = input(f"  {C.HOT}source {C.GREY}[1] string  [2] file{C.WHITE}: {C.R}").strip()
-    if src == "2":
-        path = input(f"  {C.HOT}file path{C.WHITE}: {C.R}").strip()
-        if not os.path.isfile(path):
-            print(f"  {C.BRIGHT}[!] file not found.{C.R}")
-            return pause()
-        hashes = {a: hashlib.new(a) for a in ("md5", "sha1", "sha256", "sha512")}
-        with open(path, "rb") as f:
-            for chunk in iter(lambda: f.read(65536), b""):
-                for h in hashes.values():
-                    h.update(chunk)
-        results = {a: h.hexdigest() for a, h in hashes.items()}
-        label = path
-    else:
-        text = input(f"  {C.HOT}text{C.WHITE}: {C.R}")
-        data = text.encode()
-        results = {
-            "md5":    hashlib.md5(data).hexdigest(),
-            "sha1":   hashlib.sha1(data).hexdigest(),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "sha512": hashlib.sha512(data).hexdigest(),
-        }
-        label = f'"{text}"' if len(text) <= 40 else f'"{text[:37]}..."'
-
-    print(f"\n  {C.GREY}source: {C.WHITE}{label}{C.R}\n")
-    for algo, digest in results.items():
-        print(f"  {C.HOT}{algo.upper():<7}{C.R} "
-              f"{C.GREY}:{C.R} "
-              f"{C.WHITE}{digest}{C.R}")
-    pause()
-
-
-# ---------------------------------------------------------------------------
-# Tool 5: Password Generator
-# ---------------------------------------------------------------------------
-
-def tool_password() -> None:
-    section("PASSWORD GENERATOR")
-    try:
-        length = int(input(f"  {C.HOT}length   {C.GREY}(default 20){C.WHITE}: {C.R}") or "20")
-        count  = int(input(f"  {C.HOT}how many {C.GREY}(default 5){C.WHITE}: {C.R}") or "5")
-    except ValueError:
-        print(f"  {C.BRIGHT}[!] invalid number{C.R}")
-        return pause()
-
-    length = max(4, min(length, 128))
-    count  = max(1, min(count, 50))
-
-    use_sym = input(f"  {C.HOT}symbols? {C.GREY}[Y/n]{C.WHITE}: {C.R}").strip().lower() != "n"
-    alphabet = string.ascii_letters + string.digits + (string.punctuation if use_sym else "")
-
-    print()
-    for i in range(1, count + 1):
-        pw = "".join(secrets.choice(alphabet) for _ in range(length))
-        # color characters by class
-        colored = ""
-        for ch in pw:
-            if ch.isdigit():
-                colored += f"{C.HOT}{ch}"
-            elif ch.isalpha():
-                colored += f"{C.WHITE}{ch}"
-            else:
-                colored += f"{C.BRIGHT}{ch}"
-        print(f"  {C.GREY}{i:>2}.{C.R} {colored}{C.R}")
-    pause()
-
-
-# ---------------------------------------------------------------------------
 # Menu
 # ---------------------------------------------------------------------------
 
@@ -661,8 +585,6 @@ MENU_ITEMS = [
     ("1", "IP Lookup",          "geo / ISP / ASN via ip-api"),
     ("2", "Webhook Sender",     "send messages to Discord webhooks"),
     ("3", "Port Scanner",       "multi-threaded TCP port scan"),
-    ("4", "Hash Generator",     "MD5 / SHA1 / SHA256 / SHA512"),
-    ("5", "Password Generator", "secure random passwords"),
     ("9", "Show Devil",         "render the devil again"),
     ("0", "Exit",               "leave the bot"),
 ]
@@ -682,7 +604,7 @@ def print_menu() -> None:
 
 def prompt() -> str:
     return input(
-        f"  {C.BRIGHT}root{C.GREY}@{C.HOT}rainbot"
+        f"  {C.BRIGHT}root{C.GREY}@{C.HOT}0day"
         f"{C.GREY}:{C.RED}~{C.WHITE}# {C.R}"
     ).strip()
 
@@ -691,8 +613,6 @@ HANDLERS = {
     "1": tool_ip_lookup,
     "2": tool_webhook,
     "3": tool_port_scan,
-    "4": tool_hash,
-    "5": tool_password,
 }
 
 
